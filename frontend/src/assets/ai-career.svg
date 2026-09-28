@@ -1,0 +1,36 @@
+<svg width="520" height="330" viewBox="0 0 520 330" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="40" y1="30" x2="470" y2="310" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8F4FF"/>
+      <stop offset="0.55" stop-color="#EFEAFF"/>
+      <stop offset="1" stop-color="#FFEAF6"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="500" height="310" rx="36" fill="url(#bg)"/>
+  <circle cx="430" cy="65" r="28" fill="#F8D8FF"/>
+  <circle cx="94" cy="260" r="34" fill="#D8F7EE"/>
+  <path d="M78 115C120 79 162 70 203 84C242 98 271 128 304 118C338 107 348 61 397 58" stroke="#93C5FD" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 9"/>
+  <rect x="170" y="92" width="160" height="118" rx="30" fill="white" stroke="#D8E0F0" stroke-width="3"/>
+  <rect x="186" y="110" width="128" height="70" rx="20" fill="#111827"/>
+  <circle cx="226" cy="145" r="7" fill="#60A5FA"/>
+  <circle cx="274" cy="145" r="7" fill="#A78BFA"/>
+  <path d="M234 159C248 170 263 170 276 158" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <rect x="228" y="72" width="44" height="18" rx="9" fill="url(#accent)"/>
+  <path d="M250 72V54" stroke="#6B7280" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="250" cy="49" r="7" fill="#FBBF24"/>
+  <rect x="199" y="214" width="102" height="42" rx="18" fill="white" stroke="#D8E0F0" stroke-width="3"/>
+  <path d="M221 235L237 225L249 239L272 220" stroke="#2563EB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="46" y="66" width="96" height="54" rx="18" fill="white" stroke="#D8E0F0" stroke-width="3"/>
+  <circle cx="69" cy="93" r="11" fill="#DBEAFE"/>
+  <path d="M64 92L68 97L76 87" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="87" y="89" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172033">Resume</text>
+  <text x="87" y="105" font-family="Arial, sans-serif" font-size="12" fill="#64748B">Analyze</text>
+  <rect x="354" y="200" width="120" height="58" rx="20" fill="white" stroke="#D8E0F0" stroke-width="3"/>
+  <path d="M378 230H390M396 218V242M412 224V242" stroke="#8B5CF6" stroke-width="5" stroke-linecap="round"/>
+  <text x="424" y="224" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#172033">Career</text>
+  <text x="424" y="241" font-family="Arial, sans-serif" font-size="12" fill="#64748B">Fit</text>
+</svg>
