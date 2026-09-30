@@ -1,43 +1,199 @@
-import re
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Job, Profile
-from auth import get_user_id
-from services.ai_service import CAREERS
-router=APIRouter()
+import json
+import re
 
-def norm(s): return re.sub(r'[^a-z0-9+#/ ]','',s.lower()).strip()
-def skills(s): return {norm(x) for x in (s or '').split(',') if x.strip()}
+router = APIRouter()
 
-def seed(db):
-    if db.query(Job).count(): return
-    rows=[
-    ('Junior AI/ML Engineer','TechNova','Hyderabad','AI/ML Engineer','Python, Machine Learning, SQL, FastAPI, Git','https://www.linkedin.com/jobs/search/?keywords=AI%20ML%20Engineer&location=Hyderabad'),
-    ('Data Scientist - Graduate','DataWorks','Bengaluru','Data Scientist','Python, SQL, Statistics, Machine Learning, Pandas','https://www.linkedin.com/jobs/search/?keywords=Data%20Scientist&location=Bengaluru'),
-    ('Frontend Engineer - Graduate','WebCraft','Hyderabad','Frontend Developer','JavaScript, React, HTML/CSS, Git','https://www.linkedin.com/jobs/search/?keywords=Frontend%20Developer&location=Hyderabad'),
-    ('Backend Engineer - Graduate','CloudStack','Pune','Backend Developer','Python, FastAPI, SQL, Docker, Git','https://www.linkedin.com/jobs/search/?keywords=Backend%20Developer&location=Pune'),
-    ('Data Analyst - Graduate','Insight Labs','Chennai','Data Analyst','SQL, Excel, Python, Statistics, Power BI','https://www.linkedin.com/jobs/search/?keywords=Data%20Analyst&location=Chennai'),
-    ('DevOps Associate','InfraCloud','Hyderabad','DevOps Engineer','Linux, Git, Docker, CI/CD, Cloud','https://www.linkedin.com/jobs/search/?keywords=DevOps%20Engineer&location=Hyderabad')]
-    for title,company,loc,career,req,url in rows: db.add(Job(title=title,company=company,location=loc,career=career,required_skills=req,apply_url=url,description=f'Entry-level opportunity aligned with {career}. Verify the employer and application details before applying.',experience_level='Entry-level',source='Career Copilot catalog'))
+
+def normalize_skill(skill):
+    return re.sub(
+        r"[^a-z0-9+#.]",
+        "",
+        skill.lower().strip()
+    )
+
+
+def get_skills(text):
+    if not text:
+        return set()
+
+    return {
+        normalize_skill(skill)
+        for skill in text.split(",")
+        if skill.strip()
+    }
+
+
+@router.get("/")
+def get_jobs(db: Session = Depends(get_db)):
+    jobs = db.query(Job).order_by(Job.id.desc()).all()
+
+    return [
+        {
+            "id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "job_type": job.job_type,
+            "description": job.description,
+            "required_skills": job.required_skills,
+            "apply_url": job.apply_url,
+        }
+        for job in jobs
+    ]
+
+
+@router.post("/")
+def create_job(
+    job: dict,
+    db: Session = Depends(get_db)
+):
+    if not job.get("title"):
+        raise HTTPException(
+            400,
+            "title is required"
+        )
+
+    if not job.get("company"):
+        raise HTTPException(
+            400,
+            "company is required"
+        )
+
+    new_job = Job(
+        title=job["title"],
+        company=job["company"],
+        location=job.get("location", ""),
+        job_type=job.get(
+            "job_type",
+            "Full-time"
+        ),
+        description=job.get(
+            "description",
+            ""
+        ),
+        required_skills=job.get(
+            "required_skills",
+            ""
+        ),
+        apply_url=job.get(
+            "apply_url",
+            ""
+        )
+    )
+
+    db.add(new_job)
     db.commit()
+    db.refresh(new_job)
 
-@router.get('/')
-def get_jobs(db:Session=Depends(get_db)):
-    seed(db); return {'jobs':[pack(j) for j in db.query(Job).order_by(Job.id.desc()).all()]}
+    return {
+        "message": "Job created successfully",
+        "job": {
+            "id": new_job.id,
+            "title": new_job.title,
+            "company": new_job.company
+        }
+    }
 
-def pack(j): return {'id':j.id,'title':j.title,'company':j.company,'location':j.location,'job_type':j.job_type,'experience_level':j.experience_level,'career':j.career,'description':j.description,'required_skills':j.required_skills,'apply_url':j.apply_url,'source':j.source}
 
-@router.get('/match')
-def match(request:Request,career:str='',location:str='',db:Session=Depends(get_db)):
-    uid=get_user_id(request); seed(db); p=db.query(Profile).filter(Profile.user_id==uid).first(); target=career or (p.target_role if p else '')
-    if not target: raise HTTPException(400,'Select a target career first')
-    student={norm(x) for x in ((p.skills if p else '') or '').replace('[','').replace(']','').replace('"','').split(',') if x.strip()}
-    jobs=db.query(Job).all(); results=[]
-    for j in jobs:
-        if j.career and j.career != target: continue
-        if location and location.lower() not in (j.location or '').lower(): continue
-        req=skills(j.required_skills); matched=req & student; missing=req-student; score=round(len(matched)/len(req)*100) if req else 0
-        results.append({**pack(j),'match_percentage':score,'matched_skills':sorted(matched),'missing_skills':sorted(missing)})
-    results.sort(key=lambda x:x['match_percentage'],reverse=True)
-    return {'career':target,'matches':results}
+@router.get("/match/{user_id}")
+def match_jobs(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    profile = (
+        db.query(Profile)
+        .filter(Profile.user_id == user_id)
+        .first()
+    )
+
+    if not profile:
+        raise HTTPException(
+            404,
+            "Student profile not found"
+        )
+
+    student_skills = set()
+
+    # Profile skills
+    if profile.skills:
+        try:
+            saved_skills = json.loads(
+                profile.skills
+            )
+
+            if isinstance(saved_skills, list):
+                student_skills.update(
+                    normalize_skill(skill)
+                    for skill in saved_skills
+                )
+
+        except (json.JSONDecodeError, TypeError):
+            student_skills.update(
+                get_skills(profile.skills)
+            )
+
+    jobs = (
+        db.query(Job)
+        .order_by(Job.id.desc())
+        .all()
+    )
+
+    results = []
+
+    for job in jobs:
+
+        required_skills = get_skills(
+            job.required_skills
+        )
+
+        if not required_skills:
+            match_percentage = 0
+            matched = set()
+            missing = set()
+
+        else:
+            matched = (
+                student_skills
+                & required_skills
+            )
+
+            missing = (
+                required_skills
+                - student_skills
+            )
+
+            match_percentage = round(
+                (
+                    len(matched)
+                    / len(required_skills)
+                ) * 100
+            )
+
+        results.append({
+            "id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "job_type": job.job_type,
+            "description": job.description,
+            "required_skills": job.required_skills,
+            "apply_url": job.apply_url,
+            "match_percentage": match_percentage,
+            "matched_skills": sorted(matched),
+            "missing_skills": sorted(missing)
+        })
+
+    results.sort(
+        key=lambda x: x["match_percentage"],
+        reverse=True
+    )
+
+    return {
+        "user_id": user_id,
+        "total_jobs": len(results),
+        "matches": results
+    }
